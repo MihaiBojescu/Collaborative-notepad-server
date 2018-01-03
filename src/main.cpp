@@ -6,14 +6,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include "../include/functions.h"
+#include "../include/server.h"
 
-struct openFile
-{
-    int file;
-    sockaddr_in peerA;
-    sockaddr_in peerB;
-};
 int serverSocket;
 
 void signalHandler(int sig)

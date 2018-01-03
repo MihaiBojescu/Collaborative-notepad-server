@@ -1,12 +1,18 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../include/functions.h"
+
+#include "../include/server.h"
+#include "../include/declarations.h"
+#include "../include/network.h"
+#include "../include/handlers.h"
 
 void setupServerSocket(int& serverSocket, struct sockaddr_in& serverAddr, char& option)
 {
@@ -51,6 +57,7 @@ void serve(int& serverSocket, struct sockaddr_in& receiveAddr, int* clients, int
     int i;
     int maxDescriptor;
     unsigned int len;
+    std::vector<openFile*> fileList;
 
     len = sizeof(&receiveAddr);
     while(1)
@@ -64,7 +71,7 @@ void serve(int& serverSocket, struct sockaddr_in& receiveAddr, int* clients, int
             serveServer(serverSocket, receiveAddr, len, clients, maxClients);
         for(i = 0; i < maxClients; i++)
             if(FD_ISSET(clients[i], &readFDs))
-                serveClient(clients, i);
+                serveClient(clients[i], readFDs, fileList);
     }
 }
 
@@ -107,46 +114,17 @@ void serveServer(int& serverSocket, struct sockaddr_in& receiveAddr, unsigned in
         }
 }
 
-void serveClient(int* clients, int i)
+void serveClient(int& socket, fd_set& readFDs, std::vector<openFile*>& fileList)
 {
-    char message[4096];
-    int nBytesRead;
-    if((nBytesRead = read(clients[i], message, sizeof(message))) == 0)
-    {
-        close(clients[i]);
-        clients[i] = 0;
-    }
-    else
-    {
-        message[nBytesRead] = 0;
+    std::string message = readStringFromSocket(socket);
 
-        printf("Got: %s\n", message);
-        fflush(stdout);
-        if(strcmp(message, "Send") == 0)
-        {
-            printf("Sending data...\n");
-            fflush(stdout);
-            sendEnd(clients[i]);
-            printf("Sent data...\n");
-            fflush(stdout);
-        }
-    }
-}
+    printf("Got message: %s\n", message.c_str());
+    fflush(stdout);
 
-void sendString(int socket, const char* string)
-{
-    if(write(socket, string, strlen(string) + 1) == -1)
-    {
-        perror("Write error.");
-        exit(1);
-    }
-}
-
-void sendEnd(int socket)
-{
-    if(write(socket, "\0", 1) == -1)
-    {
-        perror("Write error.");
-        exit(1);
-    }
+    if(message == "Send")
+        handleSendAllOpenFiles(socket, fileList);
+    else if(message.find("Sending ") == 0)
+        handleReceiveNewFile(socket, message, fileList);
+    else if(message.find("Open ") == 0)
+        handleSendOpenFile(socket, message, fileList);
 }
