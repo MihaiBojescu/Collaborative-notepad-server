@@ -9,12 +9,35 @@
 
 #include "../include/declarations.h"
 
-void setupServerSocket(int& serverSock, struct sockaddr_in& serverAddr, char& option);
-void resetClientArray(int* array, int size);
-void serve(int& serverSocket, struct sockaddr_in& receiveAddr, int* clients, int& maxClients);
-void setupFileDescriptorSet(fd_set& readFDs, int serverSocket, int& maxDescriptor);
-void setupClients(int* clients, int maxClients, fd_set& readFDs, int& maxDescriptor);
-void serveServer(int& serverSocket, struct sockaddr_in& receiveAddr, unsigned int& len, int* clients, int& maxClients);
-void serveClient(int& clients, fd_set& readFDs, std::vector<openFile*> &fileList);
+class notepadServer
+{
+public:
+    notepadServer();
+    ~notepadServer();
 
+private:
+    static notepadServer* instance;
+    void setupServerSocket();
+    void serve();
+    void setupFileDescriptorSet();
+    void setupClients();
+    void serveServer();
+    void serveClient(int& client);
+
+    void handleSendAllOpenFiles(int& socket);
+    void handleReceiveNewFile(int& socket, std::string message);
+    void handleSendOpenFile(int& socket, std::string message);
+
+    std::string readStringFromSocket(int& socket);
+    void sendString(int& socket, std::string);
+    void sendEnd(int& socket);
+
+    int socket;
+    int maxDescriptor;
+    fd_set readFDs;
+    sockaddr_in serverAddr;
+    sockaddr_in receiveAddr;
+    std::vector<int> clients;
+    std::vector<openFile*> fileList;
+};
 #endif

@@ -1,36 +1,26 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
 #include <signal.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include "../include/server.h"
 
-int serverSocket;
+notepadServer* server;
 
-void signalHandler(int sig)
+static void sigHandler(int signal)
 {
-    if(serverSocket != 0)
-    {
-        close(serverSocket);
-    }
+    delete server;
+    exit(0);
 }
 
 int main(int argc, char** argv)
 {
-    sockaddr_in serverAddr;
-    sockaddr_in receiveAddr;
+    struct sigaction newAction, oldAction;
+    
+    newAction.sa_handler = sigHandler;
+    sigemptyset(&newAction.sa_mask);
+    newAction.sa_flags = 0;
 
-    char option = 1;
-    int clients[50];
-    int maxClients = 50;
+    sigaction(SIGINT, NULL, &oldAction);
+    if(oldAction.sa_handler != SIG_IGN)
+        sigaction(SIGINT, &newAction, NULL);
 
-    signal(SIGINT, signalHandler);
-    setupServerSocket(serverSocket, serverAddr, option);
-    resetClientArray(clients, maxClients);
-    serve(serverSocket, receiveAddr, clients, maxClients);
-
+    server = new notepadServer();
     return 0;
 }
