@@ -5,7 +5,7 @@ DEBUGFLAGS = -g
 INCLUDES = include/*.h
 SRC = src/*.cpp
 
-LIBS =
+LIBS = -ljsoncpp
 
 OUTPUT = notepadserver
 

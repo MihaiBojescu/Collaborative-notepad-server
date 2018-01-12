@@ -10,6 +10,8 @@ struct openFile
     char isAvailable;
     sockaddr_in peerA;
     sockaddr_in peerB;
+    int socketA;
+    int socketB;
 };
 
 #endif

@@ -12,7 +12,7 @@ static void sigHandler(int signal)
 int main(int argc, char** argv)
 {
     struct sigaction newAction, oldAction;
-    
+
     newAction.sa_handler = sigHandler;
     sigemptyset(&newAction.sa_mask);
     newAction.sa_flags = 0;

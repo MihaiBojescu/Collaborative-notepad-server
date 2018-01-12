@@ -7,6 +7,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <json/json.h>
+
 #include "../include/declarations.h"
 
 class notepadServer
@@ -16,8 +18,8 @@ public:
     ~notepadServer();
 
 private:
-    static notepadServer* instance;
     void setupServerSocket();
+    void getExistingFileList();
     void serve();
     void setupFileDescriptorSet();
     void setupClients();
@@ -25,8 +27,9 @@ private:
     void serveClient(int& client);
 
     void handleSendAllOpenFiles(int& socket);
-    void handleReceiveNewFile(int& socket, std::string message);
-    void handleSendOpenFile(int& socket, std::string message);
+    void handleReceiveNewFile(int& socket, Json::Value object);
+    void handleSendOpenFile(int& socket, Json::Value object);
+    void handleEditOpenFile(int& socket, Json::Value object);
 
     std::string readStringFromSocket(int& socket);
     void sendString(int& socket, std::string);

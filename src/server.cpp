@@ -3,23 +3,31 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <json/json.h>
+#include <json/reader.h>
+#include <json/writer.h>
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <algorithm>
+#include <sstream>
+#include <iostream>
 
 #include "../include/server.h"
 
 notepadServer::notepadServer()
 {
     this->setupServerSocket();
+    this->getExistingFileList();
     this->serve();
 }
 
 notepadServer::~notepadServer()
 {
+    printf("Closing server socket\n");
     fflush(stdout);
     for(int client: this->clients)
     {
@@ -30,6 +38,11 @@ notepadServer::~notepadServer()
     printf("Closing server connection with id: %d\n", this->socket);
     fflush(stdout);
     close(this->socket);
+}
+
+void notepadServer::getExistingFileList()
+{
+    //TODO: implement this method;
 }
 
 void notepadServer::setupServerSocket()
@@ -113,18 +126,23 @@ void notepadServer::serveServer()
 
 void notepadServer::serveClient(int& socket)
 {
+    Json::Value object;
     std::string message = this->readStringFromSocket(socket);
+    std::stringstream(message) >> object;
+
     if(message != "")
     {
         printf("Got message: %s\n", message.c_str());
         fflush(stdout);
 
-        if(message == "Send")
+        if(object["reason"] == "Send all files")
             this->handleSendAllOpenFiles(socket);
-        else if(message.find("Sending ") == 0)
-            this->handleReceiveNewFile(socket, message);
-        else if(message.find("Open ") == 0)
-            this->handleSendOpenFile(socket, message);
+        else if(object["reason"] == "Sending file")
+            this->handleReceiveNewFile(socket, object);
+        else if(object["reason"] == "Open file")
+            this->handleSendOpenFile(socket, object);
+        else if(object["reason"] == "Edit file")
+            this->handleEditOpenFile(socket, object);
     }
 }
 
@@ -133,18 +151,46 @@ void notepadServer::handleSendAllOpenFiles(int& socket)
     printf("Sending data...\n");
     fflush(stdout);
 
+    Json::Value array;
+    Json::Value object;
+
     for(openFile* file: fileList)
-        sendString(socket, (file->filename + file->isAvailable).c_str());
-    sendEnd(socket);
+        array.append(file->filename + file->isAvailable);
+
+    object["reason"] = "Send all files";
+    object["files"] = array;
+    if(!array.isNull())
+    {
+        printf("Built array.\n");
+        fflush(stdout);
+
+        std::string output;
+        Json::FastWriter writer;
+        output = writer.write(object);
+
+        sendString(socket, output.c_str());
+    }
+    else
+    {
+        Json::Value newObject;
+        newObject["reason"] = "Send all files";
+        newObject["files"] = Json::arrayValue;
+
+        std::string output;
+        Json::FastWriter writer;
+        output = writer.write(newObject);
+
+        sendString(socket, output.c_str());
+    }
 
     printf("Sent data...\n");
     fflush(stdout);
 }
 
-void notepadServer::handleReceiveNewFile(int& socket, std::string message)
+void notepadServer::handleReceiveNewFile(int& socket, Json::Value object)
 {
-    std::string content = readStringFromSocket(socket);
-    std::string filename = message.substr(strlen("Sending "), message.length());
+    std::string filename = object["filename"].asString();
+    std::string content = object["filecontent"].asString();
 
     printf("Filename: %s\n", filename.c_str());
     printf("File content: %s\n", content.c_str());
@@ -159,16 +205,18 @@ void notepadServer::handleReceiveNewFile(int& socket, std::string message)
     file->filecontent = content;
     file->isAvailable = '+';
     file->peerA = peerA;
+    file->socketA = socket;
     file->peerB.sin_port = 0;
+    file->socketB = -1;
 
     fileList.push_back(file);
 }
 
-void notepadServer::handleSendOpenFile(int& socket, std::string message)
+void notepadServer::handleSendOpenFile(int& socket, Json::Value object)
 {
     bool found = false;
     openFile* reference;
-    std::string filename = message.substr(strlen("Open "), message.length());
+    std::string filename = object["filename"].asString();
 
     for(openFile* file: fileList)
         if(file->filename == filename)
@@ -182,9 +230,16 @@ void notepadServer::handleSendOpenFile(int& socket, std::string message)
     {
         if(reference->isAvailable == '+' && reference->peerB.sin_port == 0)
         {
-            sendString(socket, reference->filename.c_str());
-            sendString(socket, reference->filecontent.c_str());
-            sendEnd(socket);
+            Json::Value newObject;
+            newObject["reason"] = "Open file";
+            newObject["filename"] = reference->filename;
+            newObject["filecontent"] = reference->filecontent;
+
+            std::string output;
+            Json::FastWriter writer;
+            output = writer.write(newObject);
+
+            sendString(socket, output.c_str());
 
             sockaddr_in currentPeer;
             unsigned int lenCurrentPeer = sizeof(currentPeer);
@@ -196,21 +251,81 @@ void notepadServer::handleSendOpenFile(int& socket, std::string message)
                 unsigned int len = sizeof(peerB);
                 getpeername(socket, (sockaddr*) &peerB, &len);
                 reference->peerB = peerB;
+                reference->socketB = socket;
                 reference->isAvailable = '-';
             }
         }
         else
         {
-            sendString(socket, "\0");
-            sendString(socket, "\0");
-            sendEnd(socket);
+            Json::Value newObject;
+            newObject["reason"] = "Open file";
+            newObject["filename"] = reference->filename;
+            newObject["filecontent"] = reference->filecontent;
+
+            std::string output;
+            Json::FastWriter writer;
+            output = writer.write(newObject);
+
+            sendString(socket, output.c_str());
         }
     }
     else
     {
-        sendString(socket, "\0");
-        sendString(socket, "\0");
-        sendEnd(socket);
+        Json::Value newObject;
+        newObject["reason"] = "Open file";
+        newObject["filename"] = reference->filename;
+        newObject["filecontent"] = reference->filecontent;
+
+        std::string output;
+        Json::FastWriter writer;
+        output = writer.write(newObject);
+
+        sendString(socket, output.c_str());
+    }
+}
+
+void notepadServer::handleEditOpenFile(int &socket, Json::Value object)
+{
+    std::string output;
+    Json::FastWriter writer;
+    output = writer.write(object);
+    bool found = false;
+    openFile* reference;
+    std::string filename = object["filename"].asString();
+    std::string replacement = object["filecontent"].asString();
+
+    for(openFile* file: fileList)
+        if(file->filename == filename)
+        {
+            found = true;
+            reference = file;
+            break;
+        }
+
+    sockaddr_in peer;
+    unsigned int len = sizeof(peer);
+    getpeername(socket, (sockaddr*)& peer, &len);
+
+    if(found)
+    {
+        if(peer.sin_addr.s_addr == reference->peerA.sin_addr.s_addr &&
+           peer.sin_port == reference->peerA.sin_port)
+        {
+            reference->filecontent = replacement;
+            if(reference->peerB.sin_port != 0 && reference->socketB != -1)
+            {
+                sendString(reference->socketB, output);
+            }
+        }
+        else if(peer.sin_addr.s_addr == reference->peerB.sin_addr.s_addr &&
+            peer.sin_port == reference->peerB.sin_port)
+        {
+            reference->filecontent = replacement;
+            if(reference->peerA.sin_port != 0 && reference->socketA != -1)
+            {
+                sendString(reference->socketA, output);
+            }
+        }
     }
 }
 
@@ -269,15 +384,6 @@ std::string notepadServer::readStringFromSocket(int& socket)
 void notepadServer::sendString(int& socket, std::string message)
 {
     if(::write(socket, message.c_str(), message.length() + 1) == -1)
-    {
-        perror("Write error.");
-        exit(1);
-    }
-}
-
-void notepadServer::sendEnd(int& socket)
-{
-    if(::write(socket, "\0", 1) == -1)
     {
         perror("Write error.");
         exit(1);
