@@ -2,7 +2,6 @@
 #define SERVER_H
 #include <string>
 #include <vector>
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -33,14 +32,13 @@ private:
 
     std::string readStringFromSocket(int& socket);
     void sendString(int& socket, std::string);
-    void sendEnd(int& socket);
 
     int socket;
     int maxDescriptor;
     fd_set readFDs;
     sockaddr_in serverAddr;
-    sockaddr_in receiveAddr;
     std::vector<int> clients;
     std::vector<openFile*> fileList;
+    Json::FastWriter writer;
 };
 #endif
