@@ -111,7 +111,7 @@ void notepadServer::setupServerSocket()
     this->serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     this->serverAddr.sin_port = htons(4000);
     char option = 1;
-    setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, (void*) &option, sizeof(option));
+    setsockopt(this->socket, SOL_SOCKET, SO_REUSEADDR, (void*) &option, sizeof(option));
 
     if(bind(this->socket, (struct sockaddr*) &this->serverAddr, sizeof(this->serverAddr)) == -1)
     {
@@ -310,9 +310,10 @@ void notepadServer::handleSendOpenFile(int& socket, Json::Value object)
             if(currentPeer.sin_addr.s_addr != reference->peerA.sin_addr.s_addr ||
                currentPeer.sin_port != reference->peerA.sin_port)
             {
-                reference->peerB = currentPeer;
-                reference->socketB = socket;
-                reference->isAvailable = '-';
+                reference->peerA = currentPeer;
+                reference->socketA = socket;
+                if(reference->socketB != -1 && reference->peerB.sin_port != 0)
+                    reference->isAvailable = '-';
             }
         }
         else if(reference->isAvailable == '+' && reference->peerB.sin_port == 0 && reference->socketB == -1)
@@ -334,7 +335,8 @@ void notepadServer::handleSendOpenFile(int& socket, Json::Value object)
             {
                 reference->peerA = currentPeer;
                 reference->socketA = socket;
-                reference->isAvailable = '-';
+                if(reference->socketA != -1 && reference->peerA.sin_port != 0)
+                    reference->isAvailable = '-';
             }
         }
         else
