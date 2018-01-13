@@ -417,6 +417,10 @@ void notepadServer::handleEditOpenFile(int &socket, Json::Value object)
             close(file);
         }
     }
+    else
+    {
+        this->handleReceiveNewFile(socket, object);
+    }
 }
 
 std::string notepadServer::readStringFromSocket(int& socket)
