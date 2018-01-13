@@ -25,14 +25,14 @@ private:
     void serveServer();
     void serveClient(int& client);
 
-    void handleSendAllOpenFiles(int& socket);
-    void handleReceiveNewFile(int& socket, Json::Value object);
-    void handleSendOpenFile(int& socket, Json::Value object);
-    void handleEditOpenFile(int& socket, Json::Value object);
-    void handleDisconnect(int& socket, Json::Value object);
+    void handleSendAllOpenFiles(int& client);
+    void handleReceiveNewFile(int& client, Json::Value object);
+    void handleSendOpenFile(int& client, Json::Value object);
+    void handleEditOpenFile(int& client, Json::Value object);
+    void handleDisconnect(int& client, Json::Value object);
 
-    std::string readStringFromSocket(int& socket);
-    void sendString(int& socket, std::string);
+    std::string readStringFromSocket(int& client);
+    void sendString(int& client, std::string);
 
     int socket;
     int maxDescriptor;

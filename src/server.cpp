@@ -179,11 +179,11 @@ void notepadServer::serveServer()
     this->clients.push_back(client);
 }
 
-void notepadServer::serveClient(int& socket)
+void notepadServer::serveClient(int& client)
 {
     Json::Value object;
-    std::string message = this->readStringFromSocket(socket);
-    if(socket != -1)
+    std::string message = this->readStringFromSocket(client);
+    if(client != -1)
     {
         std::stringstream(message) >> object;
 
@@ -192,20 +192,20 @@ void notepadServer::serveClient(int& socket)
             std::cout << "Got message: " << message << std::endl;
 
             if(object["reason"] == "Send all files")
-                this->handleSendAllOpenFiles(socket);
+                this->handleSendAllOpenFiles(client);
             else if(object["reason"] == "Sending file")
-                this->handleReceiveNewFile(socket, object);
+                this->handleReceiveNewFile(client, object);
             else if(object["reason"] == "Open file")
-                this->handleSendOpenFile(socket, object);
+                this->handleSendOpenFile(client, object);
             else if(object["reason"] == "Edit file")
-                this->handleEditOpenFile(socket, object);
+                this->handleEditOpenFile(client, object);
             else if(object["reason"] == "Disconnect")
-                this->handleDisconnect(socket, object);
+                this->handleDisconnect(client, object);
         }
     }
 }
 
-void notepadServer::handleSendAllOpenFiles(int& socket)
+void notepadServer::handleSendAllOpenFiles(int& client)
 {
     std::cout << "Sending data..." << std::endl;
 
@@ -223,20 +223,20 @@ void notepadServer::handleSendAllOpenFiles(int& socket)
         object["files"] = array;
         output = this->writer.write(object);
 
-        sendString(socket, output.c_str());
+        sendString(client, output.c_str());
     }
     else
     {
         object["files"] = Json::arrayValue;
         output = this->writer.write(object);
 
-        sendString(socket, output.c_str());
+        sendString(client, output.c_str());
     }
 
     std::cout << "Sent data..." << std::endl;
 }
 
-void notepadServer::handleReceiveNewFile(int& socket, Json::Value object)
+void notepadServer::handleReceiveNewFile(int& client, Json::Value object)
 {
     int file;
     std::string filename = object["filename"].asString();
@@ -247,14 +247,14 @@ void notepadServer::handleReceiveNewFile(int& socket, Json::Value object)
 
     sockaddr_in peerA;
     unsigned int len = sizeof(peerA);
-    getpeername(socket, (sockaddr*) &peerA, &len);
+    getpeername(client, (sockaddr*) &peerA, &len);
 
     openFile* newFile = new openFile();
     newFile->filename = filename;
     newFile->filecontent = filecontent;
     newFile->isAvailable = '+';
     newFile->peerA = peerA;
-    newFile->socketA = socket;
+    newFile->socketA = client;
     newFile->peerB.sin_port = 0;
     newFile->socketB = -1;
 
@@ -276,7 +276,7 @@ void notepadServer::handleReceiveNewFile(int& socket, Json::Value object)
     fileList.push_back(newFile);
 }
 
-void notepadServer::handleSendOpenFile(int& socket, Json::Value object)
+void notepadServer::handleSendOpenFile(int& client, Json::Value object)
 {
     bool found = false;
     openFile* reference;
@@ -300,21 +300,17 @@ void notepadServer::handleSendOpenFile(int& socket, Json::Value object)
             newObject["filename"] = reference->filename;
             newObject["filecontent"] = reference->filecontent;
 
+
             output = this->writer.write(newObject);
 
-            sendString(socket, output.c_str());
+            sendString(client, output.c_str());
 
             sockaddr_in currentPeer;
             unsigned int lenCurrentPeer = sizeof(currentPeer);
-            getpeername(socket, (sockaddr*) &currentPeer, &lenCurrentPeer);
-            if(currentPeer.sin_addr.s_addr != reference->peerA.sin_addr.s_addr ||
-               currentPeer.sin_port != reference->peerA.sin_port)
-            {
-                reference->peerA = currentPeer;
-                reference->socketA = socket;
-                if(reference->socketB != -1 && reference->peerB.sin_port != 0)
-                    reference->isAvailable = '-';
-            }
+            getpeername(client, (sockaddr*) &currentPeer, &lenCurrentPeer);
+
+            reference->peerA = currentPeer;
+            reference->socketA = client;
         }
         else if(reference->isAvailable == '+' && reference->peerB.sin_port == 0 && reference->socketB == -1)
         {
@@ -325,19 +321,13 @@ void notepadServer::handleSendOpenFile(int& socket, Json::Value object)
 
             output = this->writer.write(newObject);
 
-            sendString(socket, output.c_str());
+            sendString(client, output.c_str());
 
             sockaddr_in currentPeer;
             unsigned int lenCurrentPeer = sizeof(currentPeer);
-            getpeername(socket, (sockaddr*) &currentPeer, &lenCurrentPeer);
-            if(currentPeer.sin_addr.s_addr != reference->peerB.sin_addr.s_addr ||
-               currentPeer.sin_port != reference->peerB.sin_port)
-            {
-                reference->peerA = currentPeer;
-                reference->socketA = socket;
-                if(reference->socketA != -1 && reference->peerA.sin_port != 0)
-                    reference->isAvailable = '-';
-            }
+            getpeername(client, (sockaddr*) &currentPeer, &lenCurrentPeer);
+            reference->peerB = currentPeer;
+            reference->socketB = client;
         }
         else
         {
@@ -348,8 +338,12 @@ void notepadServer::handleSendOpenFile(int& socket, Json::Value object)
 
             output = this->writer.write(newObject);
 
-            sendString(socket, output.c_str());
+            sendString(client, output.c_str());
         }
+        if(reference->socketB != -1 && reference->socketA != -1)
+            reference->isAvailable = '-';
+        else
+            reference->isAvailable = '+';
     }
     else
     {
@@ -360,11 +354,11 @@ void notepadServer::handleSendOpenFile(int& socket, Json::Value object)
 
         output = this->writer.write(newObject);
 
-        sendString(socket, output.c_str());
+        sendString(client, output.c_str());
     }
 }
 
-void notepadServer::handleEditOpenFile(int &socket, Json::Value object)
+void notepadServer::handleEditOpenFile(int &client, Json::Value object)
 {
     std::string output = this->writer.write(object);
     bool found = false;
@@ -383,16 +377,18 @@ void notepadServer::handleEditOpenFile(int &socket, Json::Value object)
 
     sockaddr_in peer;
     unsigned int len = sizeof(peer);
-    getpeername(socket, (sockaddr*)& peer, &len);
+    getpeername(client, (sockaddr*)& peer, &len);
 
     if(found)
     {
+        std::cout<<reference->filename<<" " <<reference->socketA<<" "<<reference->socketB<<std::endl;
         if(peer.sin_addr.s_addr == reference->peerA.sin_addr.s_addr &&
            peer.sin_port == reference->peerA.sin_port)
         {
             reference->filecontent = replacement;
             if(reference->peerB.sin_port != 0 && reference->socketB != -1)
             {
+                std::cout<<"Sending same message to B" << std::endl;
                 sendString(reference->socketB, output);
             }
         }
@@ -402,6 +398,7 @@ void notepadServer::handleEditOpenFile(int &socket, Json::Value object)
             reference->filecontent = replacement;
             if(reference->peerA.sin_port != 0 && reference->socketA != -1)
             {
+                std::cout<<"Sending same message to B" << std::endl;
                 sendString(reference->socketA, output);
             }
         }
@@ -423,15 +420,15 @@ void notepadServer::handleEditOpenFile(int &socket, Json::Value object)
     }
     else
     {
-        this->handleReceiveNewFile(socket, object);
+        this->handleReceiveNewFile(client, object);
     }
 }
 
-void notepadServer::handleDisconnect(int& socket, Json::Value object)
+void notepadServer::handleDisconnect(int& client, Json::Value object)
 {
     sockaddr_in peer;
     unsigned int len = sizeof(peer);
-    getpeername(socket, (sockaddr*)& peer, &len);
+    getpeername(client, (sockaddr*)& peer, &len);
 
     for(openFile* file: this->fileList)
     {
@@ -457,7 +454,7 @@ void notepadServer::handleDisconnect(int& socket, Json::Value object)
               << peer.sin_port << " closed " << object["filename"] <<std::endl;
 }
 
-std::string notepadServer::readStringFromSocket(int& socket)
+std::string notepadServer::readStringFromSocket(int& client)
 {
     std::string buffer = "";
     char currentChar;
@@ -466,11 +463,11 @@ std::string notepadServer::readStringFromSocket(int& socket)
 
     sockaddr_in peer;
     unsigned int len = sizeof(peer);
-    getpeername(socket, (sockaddr*)& peer, &len);
+    getpeername(client, (sockaddr*)& peer, &len);
 
     do
     {
-        if((bytesWritten = ::read(socket, &currentChar, 1)) == -1)
+        if((bytesWritten = ::read(client, &currentChar, 1)) == -1)
         {
             noError = false;
             perror("Read error.");
@@ -499,9 +496,9 @@ std::string notepadServer::readStringFromSocket(int& socket)
                 }
             }
 
-            this->clients.erase(std::find(this->clients.begin(), this->clients.end(), socket), this->clients.end());
-            close(socket);
-            socket = -1;
+            this->clients.erase(std::find(this->clients.begin(), this->clients.end(), client), this->clients.end());
+            close(client);
+            client = -1;
             std::cout << "Client disconnected: " << inet_ntoa(peer.sin_addr) << ":"
                       << peer.sin_port << std::endl;
         }
@@ -515,9 +512,9 @@ std::string notepadServer::readStringFromSocket(int& socket)
     return buffer;
 }
 
-void notepadServer::sendString(int& socket, std::string message)
+void notepadServer::sendString(int& client, std::string message)
 {
-    if(::write(socket, message.c_str(), message.length() + 1) == -1)
+    if(::write(client, message.c_str(), message.length() + 1) == -1)
     {
         perror("Write error.");
         exit(1);
