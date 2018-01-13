@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.13"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Collaborative notepad - Server: Collaborative-notepad-server</title>
+<title>Collaborative notepad - Server: Collaborative notepad server</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -30,7 +30,7 @@
   <td id="projectlogo"><img alt="Logo" src="app.png"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">Collaborative notepad - Server
-   &#160;<span id="projectnumber">1.0</span>
+   &#160;<span id="projectnumber">1.1</span>
    </div>
    <div id="projectbrief">A server for the collaborative notepad application</div>
   </td>
@@ -83,10 +83,30 @@ $(document).ready(function(){initNavTree('md__home_michael__facultate__anul_2__r
 
 <div class="header">
   <div class="headertitle">
-<div class="title">Collaborative-notepad-server </div>  </div>
+<div class="title">Collaborative notepad server </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p>A server for the collaborative notepad project. </p>
+<div class="textblock"><p>A server for the collaborative notepad project.</p>
+<div class="image">
+<img src="https://github.com/MihaiBojescu/Collaborative-notepad-server/blob/master/res/app.png" alt="Project logo" title="Collaborative notepad"/>
+</div>
+<h1>Dependencies:</h1>
+<p>The compilation dependencies for this project are:</p><ul>
+<li>glibc (GNU C Library)</li>
+<li>jsoncpp</li>
+</ul>
+<p>Dependencies can be installed like this:</p><ul>
+<li><code>sudo apt install glibc libjsoncpp-dev libjsoncpp1</code> for Debian based distributions</li>
+<li><code>sudo pacman -Sy glibc jsoncpp</code> for Arch based distributions</li>
+</ul>
+<h1>Compiling:</h1>
+<p>Run <code>make</code> or <code>make debug</code> (for debugging support with GDB).</p>
+<h1>Usage</h1>
+<p>Run the created executable created in the <code>build/</code> directory:</p><ul>
+<li><code>build/notepadserver</code> for release build;</li>
+<li><code>build/notepadserver-debug</code> for debug build;</li>
+</ul>
+<p><b>Disclaimer:</b> The server isn't interactive. </p>
 </div></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
