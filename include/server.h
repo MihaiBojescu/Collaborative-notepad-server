@@ -29,6 +29,7 @@ private:
     void handleReceiveNewFile(int& socket, Json::Value object);
     void handleSendOpenFile(int& socket, Json::Value object);
     void handleEditOpenFile(int& socket, Json::Value object);
+    void handleDisconnect(int& socket, Json::Value object);
 
     std::string readStringFromSocket(int& socket);
     void sendString(int& socket, std::string);

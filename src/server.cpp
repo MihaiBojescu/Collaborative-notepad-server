@@ -199,6 +199,8 @@ void notepadServer::serveClient(int& socket)
                 this->handleSendOpenFile(socket, object);
             else if(object["reason"] == "Edit file")
                 this->handleEditOpenFile(socket, object);
+            else if(object["reason"] == "Disconnect")
+                this->handleDisconnect(socket, object);
         }
     }
 }
@@ -421,6 +423,36 @@ void notepadServer::handleEditOpenFile(int &socket, Json::Value object)
     {
         this->handleReceiveNewFile(socket, object);
     }
+}
+
+void notepadServer::handleDisconnect(int& socket, Json::Value object)
+{
+    sockaddr_in peer;
+    unsigned int len = sizeof(peer);
+    getpeername(socket, (sockaddr*)& peer, &len);
+
+    for(openFile* file: this->fileList)
+    {
+        if(file->peerA.sin_addr.s_addr == peer.sin_addr.s_addr && \
+           file->peerA.sin_port == peer.sin_port)
+        {
+           file->peerA.sin_addr.s_addr = 0;
+           file->peerA.sin_port = 0;
+           file->socketA = -1;
+           file->isAvailable = '+';
+        }
+        if(file->peerB.sin_addr.s_addr == peer.sin_addr.s_addr && \
+           file->peerB.sin_port == peer.sin_port)
+        {
+           file->peerB.sin_addr.s_addr = 0;
+           file->peerB.sin_port = 0;
+           file->socketB = -1;
+           file->isAvailable = '+';
+        }
+    }
+
+    std::cout << "Client " << inet_ntoa(peer.sin_addr) << ":"
+              << peer.sin_port << " closed " << object["filename"] <<std::endl;
 }
 
 std::string notepadServer::readStringFromSocket(int& socket)
